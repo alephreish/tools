@@ -1,0 +1,66 @@
+#!/bin/bash
+
+while getopts ":i:o:W:H:" opt; do
+  case $opt in
+    i) input_file="$OPTARG"
+    ;;
+    o) output_file="$OPTARG"
+    ;;
+    W) width="$OPTARG"
+    ;;
+    H) height="$OPTARG"
+    ;;
+    h) help=1
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&2
+    exit 1
+    ;;
+  esac
+
+  case $OPTARG in
+    -*) echo "Option $opt needs a valid argument"
+    exit 1
+    ;;
+  esac
+done
+
+if [[ -z "$input_file" || -z "$output_file" || ! -z "$help" ]]; then
+    echo "Use as: pymol-ray -i input_file -o output_file -W width -H height" >&2
+    exit 1
+fi
+if [[ -z "$width" ]]; then
+    width=0
+fi
+if [[ -z "$height" ]]; then
+    height=0
+fi
+if [[ ! -f "$input_file" ]]; then
+    echo "File '$input_file' not found" >&2
+    exit 1
+fi
+if [[ ! -s "$input_file" ]]; then
+    echo "File '$input_file' is empty" >&2
+    exit 1
+fi
+
+temp_dir=$(mktemp -d)
+trap 'rm -rf -- "$temp_dir"' INT TERM HUP EXIT
+
+png1=$temp_dir/snapshot1.png
+png2=$temp_dir/snapshot2.png
+png3=$temp_dir/snapshot3.png
+script=$temp_dir/script.py
+cat << EOF > "$temp_dir/script.py"
+from pymol import cmd
+import sys
+input_file, png1, png2, png3, width, height = sys.argv[1:]
+cmd.load(input_file)
+cmd.ray(width, height)
+cmd.png(png1)
+cmd.ray(width, height)
+cmd.png(png2)
+cmd.ray(width, height)
+cmd.png(png3)
+EOF
+pymol -kcq "$script" -- "$input_file" "$png1" "$png2" "$png3" "$width" "$height" && \
+    convert "$png1" "$png2" "$png3" -evaluate-sequence median "$output_file"
