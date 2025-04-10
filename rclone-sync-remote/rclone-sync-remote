@@ -1,0 +1,46 @@
+#!/bin/bash
+
+while getopts "r:d:a" opt; do
+  case $opt in
+    r) remote="$OPTARG"
+    ;;
+    d) dir_name="$OPTARG"
+    ;;
+    a) with_analysis=1
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&2
+    exit 1
+    ;;
+  esac
+  case $OPTARG in
+    -*) echo "Option $opt needs a valid argument"
+    exit 1
+    ;;
+  esac
+done
+
+exclude="sandbox,.snakemake,.git,*_env,env,bak,*.bak,tmp"
+
+if [ -z "$remote" ]; then
+    echo "Remote not specified" >&2
+    exit 1
+fi
+if [ -z "$dir_name" ]; then
+    echo "Directory not specified" >&2
+    exit 1
+fi
+if [ ! -d "$dir_name" ]; then
+    echo "$dir_name is not a directory" >&2
+    exit 1
+fi
+if [ -z "$with_analysis" ]; then
+    exclude="$exclude,analysis"
+fi
+
+source=$(realpath "$dir_name")
+dest="$remote:$(uname -n)$source"
+
+log_dir=~/.rclone/logs
+mkdir -p "$log_dir"
+log_file=$remote-${source//\//_}-$(date +%Y%m%d_%H%M%S).log
+rclone sync "$source" "$dest" --exclude "{$exclude}/" --links --log-file "$log_dir/$log_file" --stats-one-line --stats-log-level NOTICE --stats 12h

@@ -53,14 +53,11 @@ script=$temp_dir/script.py
 cat << EOF > "$temp_dir/script.py"
 from pymol import cmd
 import sys
-input_file, png1, png2, png3, width, height = sys.argv[1:]
+input_file, width, height, *pngs = sys.argv[1:]
 cmd.load(input_file)
-cmd.ray(width, height)
-cmd.png(png1)
-cmd.ray(width, height)
-cmd.png(png2)
-cmd.ray(width, height)
-cmd.png(png3)
+for png in pngs:
+  cmd.ray(width, height)
+  cmd.png(png)
 EOF
-pymol -kcq "$script" -- "$input_file" "$png1" "$png2" "$png3" "$width" "$height" && \
+pymol -kcq "$script" -- "$input_file" "$width" "$height" "$png1" "$png2" "$png3" && \
     convert "$png1" "$png2" "$png3" -evaluate-sequence median "$output_file"
